@@ -6,7 +6,7 @@ TOKEN = "8397279335:AAHVEyh5sSGDOUcrSukgv3rFZIBp8ywaJdA"
 bot = telebot.TeleBot(TOKEN)
 
 # ВАЖЛИВО! Встав свій Telegram ID
-ADMIN_ID = 123456789
+ADMIN_ID = 6391072366
 
 MANAGER_PHONE = "+6391072366"
 REVIEW_LINK = "https://www.google.com/maps/place/Profi+Protect/@50.5091268,30.4629253,21z/data=!4m8!3m7!1s0x472b2b008d32e03b:0x9e906a87a1af6440!8m2!3d50.5090198!4d30.4629729!9m1!1b1!16s%2Fg%2F11vm5x966f?entry=ttu&g_ep=EgoyMDI2MDIxNy4wIKXMDSoASAFQAw%3D%3D"  # посилання на відгуки
