@@ -5,44 +5,91 @@ TOKEN = "8397279335:AAHVEyh5sSGDOUcrSukgv3rFZIBp8ywaJdA"
 
 bot = telebot.TeleBot(TOKEN)
 
-# создаём кнопки
-def main_menu():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    btn1 = types.KeyboardButton("💰 Прайс")
-    btn2 = types.KeyboardButton("🎨 Подобрать цвет")
-    btn3 = types.KeyboardButton("📞 Связаться")
-    markup.add(btn1, btn2, btn3)
-    return markup
+# ВАЖЛИВО! Встав свій Telegram ID
+ADMIN_ID = 123456789
 
-# команда старт
+MANAGER_PHONE = "+6391072366"
+REVIEW_LINK = "https://www.google.com/maps/place/Profi+Protect/@50.5091268,30.4629253,21z/data=!4m8!3m7!1s0x472b2b008d32e03b:0x9e906a87a1af6440!8m2!3d50.5090198!4d30.4629729!9m1!1b1!16s%2Fg%2F11vm5x966f?entry=ttu&g_ep=EgoyMDI2MDIxNy4wIKXMDSoASAFQAw%3D%3D"  # посилання на відгуки
+
+# старт клієнта
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.send_message(
         message.chat.id,
-        "Добро пожаловать! Выберите нужный пункт:",
-        reply_markup=main_menu()
+        "Вітаємо! 😊\nМи будемо інформувати вас про статус замовлення."
     )
 
-# обработка кнопок
-@bot.message_handler(func=lambda message: True)
-def buttons(message):
+# меню для менеджера
+@bot.message_handler(commands=['crm'])
+def crm_menu(message):
 
-    if message.text == "💰 Прайс":
-        bot.send_message(
-            message.chat.id,
-            "Отправьте запрос и мы вышлем актуальный прайс 📄"
-        )
+    if message.chat.id != ADMIN_ID:
+        return
 
-    elif message.text == "🎨 Подобрать цвет":
-        bot.send_message(
-            message.chat.id,
-            "Напишите:\n• породу дерева\n• где используется (внутри/снаружи)\n• желаемый цвет\n\nМы подберём лучший вариант 🎨"
-        )
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
-    elif message.text == "📞 Связаться":
-        bot.send_message(
-            message.chat.id,
-            "Телефон: +380XXXXXXXXX\nTelegram: @your_username"
-        )
+    markup.add("🧾 Надіслати чек")
+    markup.add("📦 Замовлення готове")
+    markup.add("🚚 Замовлення відправлено")
+    markup.add("⭐ Запросити відгук")
+
+    bot.send_message(message.chat.id, "CRM меню:", reply_markup=markup)
+
+# обробка кнопок
+@bot.message_handler(func=lambda message: message.chat.id == ADMIN_ID)
+def admin_buttons(message):
+
+    if message.text == "🧾 Надіслати чек":
+
+        msg = bot.send_message(ADMIN_ID, "Введіть ID клієнта:")
+        bot.register_next_step_handler(msg, send_receipt)
+
+    elif message.text == "📦 Замовлення готове":
+
+        msg = bot.send_message(ADMIN_ID, "Введіть ID клієнта:")
+        bot.register_next_step_handler(msg, send_ready)
+
+    elif message.text == "🚚 Замовлення відправлено":
+
+        msg = bot.send_message(ADMIN_ID, "Введіть ID клієнта:")
+        bot.register_next_step_handler(msg, send_sent)
+
+    elif message.text == "⭐ Запросити відгук":
+
+        msg = bot.send_message(ADMIN_ID, "Введіть ID клієнта:")
+        bot.register_next_step_handler(msg, send_review)
+
+
+def send_receipt(message):
+
+    bot.send_message(
+        message.text,
+        "🧾 Ваш чек готовий.\nДякуємо за покупку!"
+    )
+
+
+def send_ready(message):
+
+    bot.send_message(
+        message.text,
+        "📦 Ваше замовлення готове до відправки."
+    )
+
+
+def send_sent(message):
+
+    bot.send_message(
+        message.text,
+        f"🚚 Ваше замовлення відправлено!\n\n📞 Менеджер: {MANAGER_PHONE}"
+    )
+
+
+def send_review(message):
+
+    bot.send_message(
+        message.text,
+        f"❤️ Дякуємо за покупку!\nБудемо вдячні за відгук:\n{REVIEW_LINK}"
+    )
+
 
 bot.infinity_polling()
