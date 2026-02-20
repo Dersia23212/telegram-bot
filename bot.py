@@ -3,13 +3,13 @@ from telebot import types
 import json
 import os
 
-# ========= НАЛАШТУВАННЯ =========
+# ========= НАСТРОЙКИ =========
 
 TOKEN = "8397279335:AAHVEyh5sSGDOUcrSukgv3rFZIBp8ywaJdA"
 
 ADMIN_ID = 6391072366
 
-MANAGER_PHONE = "+0666508711"
+MANAGER_PHONE = "0666508711"
 
 MANAGER_USERNAME = "profi_protect_official"
 
@@ -18,7 +18,6 @@ CATALOG_FILE = "catalog.pdf"
 bot = telebot.TeleBot(TOKEN)
 
 DB_FILE = "clients.json"
-
 
 # ========= БАЗА =========
 
@@ -50,7 +49,6 @@ def add_client(user):
 
     save_db(db)
 
-
 # ========= START =========
 
 @bot.message_handler(commands=['start'])
@@ -70,7 +68,7 @@ def start(message):
 
         types.InlineKeyboardButton(
 
-            "💬 Написати менеджеру в Telegram",
+            "💬 Написати менеджеру",
 
             url=f"https://t.me/{MANAGER_USERNAME}"
 
@@ -82,9 +80,7 @@ def start(message):
 
         message.chat.id,
 
-        "Вас вітає бот Profi Protect! 👋\n\n"
-
-        "Я буду інформувати вас про статус вашого замовлення 📦",
+        "Вас вітає бот Profi Protect! 👋",
 
         reply_markup=reply
 
@@ -99,45 +95,6 @@ def start(message):
         reply_markup=inline
 
     )
-
-
-# ========= КАТАЛОГ =========
-
-@bot.message_handler(func=lambda m: m.text == "🎨 Каталог кольорів")
-def catalog(message):
-
-    if os.path.exists(CATALOG_FILE):
-
-        file = open(CATALOG_FILE, "rb")
-
-        bot.send_document(
-
-            message.chat.id,
-
-            file,
-
-            caption="📘 Каталог кольорів Profi Protect"
-
-        )
-
-    else:
-
-        bot.send_message(message.chat.id, "❌ Файл catalog.pdf не знайдено")
-
-
-# ========= ТЕЛЕФОН =========
-
-@bot.message_handler(func=lambda m: m.text == "📞 Зателефонувати менеджеру")
-def phone(message):
-
-    bot.send_message(
-
-        message.chat.id,
-
-        f"📞 Номер менеджера:\n{MANAGER_PHONE}"
-
-    )
-
 
 # ========= CRM =========
 
@@ -158,6 +115,8 @@ def crm(message):
 
     markup.add("🚚 Надіслати ТТН")
 
+    markup.add("📦 Статус замовлення")
+
     bot.send_message(
 
         message.chat.id,
@@ -168,124 +127,89 @@ def crm(message):
 
     )
 
+# ========= СТАТУС =========
 
-# ========= КЛІЄНТИ =========
+status_client = {}
 
-@bot.message_handler(func=lambda m: m.text == "👥 Клієнти")
-def clients(message):
-
-    db = load_db()
-
-    text = ""
-
-    for i in db:
-
-        text += f"{db[i]} — {i}\n"
-
-    bot.send_message(message.chat.id, text)
-
-
-# ========= РОЗСИЛКА =========
-
-@bot.message_handler(func=lambda m: m.text == "📢 Розсилка")
-def send_all(message):
-
-    msg = bot.send_message(message.chat.id, "Введіть текст розсилки:")
-
-    bot.register_next_step_handler(msg, send_all_finish)
-
-
-def send_all_finish(message):
-
-    db = load_db()
-
-    sent = 0
-
-    for i in db:
-
-        try:
-
-            bot.send_message(i, message.text)
-
-            sent += 1
-
-        except:
-
-            pass
-
-    bot.send_message(message.chat.id, f"✅ Надіслано: {sent}")
-
-
-# ========= PDF =========
-
-pdf_wait = {}
-
-@bot.message_handler(func=lambda m: m.text == "🧾 Надіслати PDF")
-def pdf_start(message):
+@bot.message_handler(func=lambda m: m.text == "📦 Статус замовлення")
+def status_start(message):
 
     msg = bot.send_message(message.chat.id, "Введіть ID клієнта:")
 
-    bot.register_next_step_handler(msg, pdf_client)
+    bot.register_next_step_handler(msg, status_choose)
 
 
-def pdf_client(message):
+def status_choose(message):
 
-    pdf_wait[message.chat.id] = message.text
+    client = message.text
 
-    bot.send_message(message.chat.id, "Надішліть PDF файл")
+    status_client[message.chat.id] = client
 
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
-@bot.message_handler(content_types=['document'])
-def pdf_send(message):
+    markup.add("📦 Готово")
 
-    if message.chat.id in pdf_wait:
+    markup.add("⚙️ Формується")
 
-        client = pdf_wait[message.chat.id]
+    markup.add("🚚 Відправлено")
 
-        bot.send_document(client, message.document.file_id)
+    msg = bot.send_message(
 
-        bot.send_message(message.chat.id, "✅ PDF надіслано")
+        message.chat.id,
 
-        del pdf_wait[message.chat.id]
+        "Оберіть статус:",
 
+        reply_markup=markup
 
-# ========= ТТН =========
+    )
 
-ttn_wait = {}
-
-@bot.message_handler(func=lambda m: m.text == "🚚 Надіслати ТТН")
-def ttn_start(message):
-
-    msg = bot.send_message(message.chat.id, "Введіть ID клієнта:")
-
-    bot.register_next_step_handler(msg, ttn_number)
+    bot.register_next_step_handler(msg, status_send)
 
 
-def ttn_number(message):
+def status_send(message):
 
-    ttn_wait[message.chat.id] = message.text
+    client = status_client[message.chat.id]
 
-    msg = bot.send_message(message.chat.id, "Введіть номер ТТН:")
+    status = message.text
 
-    bot.register_next_step_handler(msg, ttn_send)
+    if status == "🚚 Відправлено":
+
+        msg = bot.send_message(message.chat.id, "Введіть ТТН:")
+
+        bot.register_next_step_handler(msg, send_ttn_with_status, client)
+
+    else:
+
+        bot.send_message(
+
+            client,
+
+            f"📦 Статус замовлення:\n{status}"
+
+        )
+
+        bot.send_message(message.chat.id, "✅ Надіслано")
 
 
-def ttn_send(message):
+def send_ttn_with_status(message, client):
 
-    client = ttn_wait[message.chat.id]
+    ttn = message.text
 
     bot.send_message(
 
         client,
 
-        f"🚚 Ваше замовлення відправлено\n\nТТН:\n{message.text}"
+        f"📦 Статус замовлення:\n🚚 Відправлено\n\n🚚 ТТН:\n{ttn}"
 
     )
 
-    bot.send_message(message.chat.id, "✅ ТТН надіслано")
+    bot.send_message(
 
-    del ttn_wait[message.chat.id]
+        message.chat.id,
 
+        "✅ Статус і ТТН надіслано"
+
+    )
 
 # ========= RUN =========
 
