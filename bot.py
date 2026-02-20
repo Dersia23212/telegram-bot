@@ -3,17 +3,21 @@ from telebot import types
 import json
 import os
 
-# ----------- НАЛАШТУВАННЯ -----------
+# ---------------- НАСТРОЙКИ ----------------
 
 TOKEN = "8397279335:AAHVEyh5sSGDOUcrSukgv3rFZIBp8ywaJdA"
+
 ADMIN_ID = 6391072366
-MANAGER_PHONE = "0666508711"
+
+MANAGER_PHONE = "+0666508711"
+
+MANAGER_USERNAME = "profi_protect_official"  # без @
 
 bot = telebot.TeleBot(TOKEN)
 
 DB_FILE = "clients.json"
 
-# ----------- БАЗА -----------
+# ---------------- БАЗА ----------------
 
 def load_db():
 
@@ -47,7 +51,7 @@ def add_client(user):
 
     save_db(db)
 
-# ----------- START -----------
+# ---------------- START ----------------
 
 @bot.message_handler(commands=['start'])
 
@@ -61,6 +65,8 @@ def start(message):
 
     markup.add("📞 Зателефонувати менеджеру")
 
+    markup.add("💬 Написати менеджеру")
+
     bot.send_message(
 
         message.chat.id,
@@ -73,7 +79,7 @@ def start(message):
 
     )
 
-# ----------- КАТАЛОГ -----------
+# ---------------- КАТАЛОГ ----------------
 
 @bot.message_handler(func=lambda m: m.text == "🎨 Каталог кольорів")
 
@@ -97,11 +103,11 @@ def catalog(message):
 
         bot.send_message(message.chat.id, "Каталог не знайдено")
 
-# ----------- ДЗВІНОК МЕНЕДЖЕРУ -----------
+# ---------------- ДЗВІНОК ----------------
 
 @bot.message_handler(func=lambda m: m.text == "📞 Зателефонувати менеджеру")
 
-def manager(message):
+def call_manager(message):
 
     markup = types.InlineKeyboardMarkup()
 
@@ -125,7 +131,35 @@ def manager(message):
 
     )
 
-# ----------- CRM -----------
+# ---------------- НАПИСАТИ ----------------
+
+@bot.message_handler(func=lambda m: m.text == "💬 Написати менеджеру")
+
+def write_manager(message):
+
+    markup = types.InlineKeyboardMarkup()
+
+    button = types.InlineKeyboardButton(
+
+        text="💬 Відкрити чат",
+
+        url=f"https://t.me/{MANAGER_USERNAME}"
+
+    )
+
+    markup.add(button)
+
+    bot.send_message(
+
+        message.chat.id,
+
+        "Натисніть кнопку щоб написати менеджеру:",
+
+        reply_markup=markup
+
+    )
+
+# ---------------- CRM ----------------
 
 @bot.message_handler(commands=['crm'])
 
@@ -147,9 +181,17 @@ def crm(message):
 
     markup.add("📦 Статус")
 
-    bot.send_message(message.chat.id, "CRM меню:", reply_markup=markup)
+    bot.send_message(
 
-# ----------- СПИСОК КЛІЄНТІВ -----------
+        message.chat.id,
+
+        "CRM меню:",
+
+        reply_markup=markup
+
+    )
+
+# ---------------- КЛІЄНТИ ----------------
 
 @bot.message_handler(func=lambda m: m.text == "👥 Клієнти")
 
@@ -165,13 +207,13 @@ def clients(message):
 
     bot.send_message(message.chat.id, text)
 
-# ----------- МАСОВА РОЗСИЛКА -----------
+# ---------------- РОЗСИЛКА ----------------
 
 @bot.message_handler(func=lambda m: m.text == "📢 Розсилка")
 
 def send_all(message):
 
-    msg = bot.send_message(message.chat.id, "Введіть текст:")
+    msg = bot.send_message(message.chat.id, "Введіть текст розсилки:")
 
     bot.register_next_step_handler(msg, send_all_finish)
 
@@ -196,7 +238,7 @@ def send_all_finish(message):
 
     bot.send_message(message.chat.id, f"Надіслано: {sent}")
 
-# ----------- PDF ЧЕК -----------
+# ---------------- PDF ЧЕК ----------------
 
 pdf_wait = {}
 
@@ -230,7 +272,7 @@ def pdf_send(message):
 
         del pdf_wait[message.chat.id]
 
-# ----------- ТТН -----------
+# ---------------- ТТН ----------------
 
 ttn_wait = {}
 
@@ -268,7 +310,7 @@ def ttn_send(message):
 
     del ttn_wait[message.chat.id]
 
-# ----------- СТАТУС -----------
+# ---------------- СТАТУС ----------------
 
 status_wait = {}
 
@@ -314,7 +356,7 @@ def status_send(message):
 
     del status_wait[message.chat.id]
 
-# ----------- RUN -----------
+# ---------------- RUN ----------------
 
 print("BOT STARTED")
 
