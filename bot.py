@@ -3,23 +3,23 @@ from telebot import types
 import json
 import os
 
-# ---------------- НАЛАШТУВАННЯ ----------------
+# -------- НАСТРОЙКИ --------
 
 TOKEN = "8397279335:AAHVEyh5sSGDOUcrSukgv3rFZIBp8ywaJdA"
 
 ADMIN_ID = 6391072366
 
-MANAGER_PHONE = "+0666508711"
+MANAGER_PHONE = "+380666508711"
 
-MANAGER_USERNAME = "profi_protect_official"
+MANAGER_USERNAME = "profi_protect_manager"
 
-MANAGER_VIBER = "0666508711"
+MANAGER_VIBER = "380666508711"
 
 bot = telebot.TeleBot(TOKEN)
 
 DB_FILE = "clients.json"
 
-# ---------------- БАЗА ----------------
+# -------- БАЗА --------
 
 def load_db():
 
@@ -45,18 +45,13 @@ def add_client(user):
 
     db = load_db()
 
-    db[str(user.id)] = {
-
-        "name": user.first_name
-
-    }
+    db[str(user.id)] = user.first_name
 
     save_db(db)
 
-# ---------------- START ----------------
+# -------- START --------
 
 @bot.message_handler(commands=['start'])
-
 def start(message):
 
     add_client(message.from_user)
@@ -73,18 +68,15 @@ def start(message):
 
         message.chat.id,
 
-        "Вас вітає бот Profi Protect! 👋\n\n"
-
-        "Я буду інформувати вас про статус вашого замовлення 📦",
+        "Вас вітає бот Profi Protect! 👋\n\nЯ буду інформувати вас про статус вашого замовлення 📦",
 
         reply_markup=markup
 
     )
 
-# ---------------- КАТАЛОГ ----------------
+# -------- КАТАЛОГ --------
 
 @bot.message_handler(func=lambda m: m.text == "🎨 Каталог кольорів")
-
 def catalog(message):
 
     try:
@@ -103,31 +95,29 @@ def catalog(message):
 
     except:
 
-        bot.send_message(message.chat.id, "Каталог не знайдено")
+        bot.send_message(message.chat.id, "❌ Файл catalog.pdf не знайдено")
 
-# ---------------- ТЕЛЕФОН ----------------
+# -------- ТЕЛЕФОН --------
 
 @bot.message_handler(func=lambda m: m.text == "📞 Зателефонувати менеджеру")
-
 def phone(message):
 
     bot.send_message(
 
         message.chat.id,
 
-        f"📞 Номер менеджера:\n\n{MANAGER_PHONE}"
+        f"📞 Номер менеджера:\n{MANAGER_PHONE}"
 
     )
 
-# ---------------- TELEGRAM + VIBER ----------------
+# -------- TELEGRAM + VIBER --------
 
 @bot.message_handler(func=lambda m: m.text == "💬 Написати менеджеру")
-
 def manager(message):
 
     markup = types.InlineKeyboardMarkup()
 
-    telegram_button = types.InlineKeyboardButton(
+    telegram_btn = types.InlineKeyboardButton(
 
         "💬 Telegram",
 
@@ -135,7 +125,7 @@ def manager(message):
 
     )
 
-    viber_button = types.InlineKeyboardButton(
+    viber_btn = types.InlineKeyboardButton(
 
         "📱 Viber",
 
@@ -143,9 +133,9 @@ def manager(message):
 
     )
 
-    markup.add(telegram_button)
+    markup.add(telegram_btn)
 
-    markup.add(viber_button)
+    markup.add(viber_btn)
 
     bot.send_message(
 
@@ -157,10 +147,9 @@ def manager(message):
 
     )
 
-# ---------------- CRM ----------------
+# -------- CRM --------
 
 @bot.message_handler(commands=['crm'])
-
 def crm(message):
 
     if message.chat.id != ADMIN_ID:
@@ -179,20 +168,11 @@ def crm(message):
 
     markup.add("📦 Статус")
 
-    bot.send_message(
+    bot.send_message(message.chat.id, "CRM меню:", reply_markup=markup)
 
-        message.chat.id,
-
-        "CRM меню:",
-
-        reply_markup=markup
-
-    )
-
-# ---------------- КЛІЄНТИ ----------------
+# -------- КЛІЄНТИ --------
 
 @bot.message_handler(func=lambda m: m.text == "👥 Клієнти")
-
 def clients(message):
 
     db = load_db()
@@ -201,14 +181,13 @@ def clients(message):
 
     for i in db:
 
-        text += f"{db[i]['name']} — {i}\n"
+        text += f"{db[i]} — {i}\n"
 
     bot.send_message(message.chat.id, text)
 
-# ---------------- РОЗСИЛКА ----------------
+# -------- РОЗСИЛКА --------
 
 @bot.message_handler(func=lambda m: m.text == "📢 Розсилка")
-
 def send_all(message):
 
     msg = bot.send_message(message.chat.id, "Введіть текст:")
@@ -234,17 +213,16 @@ def send_all_finish(message):
 
             pass
 
-    bot.send_message(message.chat.id, f"Надіслано: {sent}")
+    bot.send_message(message.chat.id, f"✅ Надіслано: {sent}")
 
-# ---------------- PDF ----------------
+# -------- PDF --------
 
 pdf_wait = {}
 
 @bot.message_handler(func=lambda m: m.text == "🧾 Надіслати PDF")
-
 def pdf_start(message):
 
-    msg = bot.send_message(message.chat.id, "Введіть ID клієнта:")
+    msg = bot.send_message(message.chat.id, "ID клієнта:")
 
     bot.register_next_step_handler(msg, pdf_client)
 
@@ -257,7 +235,6 @@ def pdf_client(message):
 
 
 @bot.message_handler(content_types=['document'])
-
 def pdf_send(message):
 
     if message.chat.id in pdf_wait:
@@ -266,16 +243,15 @@ def pdf_send(message):
 
         bot.send_document(client, message.document.file_id)
 
-        bot.send_message(message.chat.id, "PDF надіслано")
+        bot.send_message(message.chat.id, "✅ PDF надіслано")
 
         del pdf_wait[message.chat.id]
 
-# ---------------- ТТН ----------------
+# -------- ТТН --------
 
 ttn_wait = {}
 
 @bot.message_handler(func=lambda m: m.text == "🚚 Надіслати ТТН")
-
 def ttn_start(message):
 
     msg = bot.send_message(message.chat.id, "ID клієнта:")
@@ -287,7 +263,7 @@ def ttn_number(message):
 
     ttn_wait[message.chat.id] = message.text
 
-    msg = bot.send_message(message.chat.id, "Введіть номер ТТН:")
+    msg = bot.send_message(message.chat.id, "Введіть ТТН:")
 
     bot.register_next_step_handler(msg, ttn_send)
 
@@ -304,16 +280,15 @@ def ttn_send(message):
 
     )
 
-    bot.send_message(message.chat.id, "ТТН надіслано")
+    bot.send_message(message.chat.id, "✅ ТТН надіслано")
 
     del ttn_wait[message.chat.id]
 
-# ---------------- СТАТУС ----------------
+# -------- СТАТУС --------
 
 status_wait = {}
 
 @bot.message_handler(func=lambda m: m.text == "📦 Статус")
-
 def status_start(message):
 
     msg = bot.send_message(message.chat.id, "ID клієнта:")
@@ -333,7 +308,7 @@ def status_choose(message):
 
     markup.add("✅ Доставлено")
 
-    msg = bot.send_message(message.chat.id, "Оберіть статус:", reply_markup=markup)
+    msg = bot.send_message(message.chat.id, "Оберіть:", reply_markup=markup)
 
     bot.register_next_step_handler(msg, status_send)
 
@@ -346,15 +321,15 @@ def status_send(message):
 
         client,
 
-        f"📦 Статус замовлення:\n{message.text}"
+        f"📦 Статус:\n{message.text}"
 
     )
 
-    bot.send_message(message.chat.id, "Статус оновлено")
+    bot.send_message(message.chat.id, "✅ Статус надіслано")
 
     del status_wait[message.chat.id]
 
-# ---------------- RUN ----------------
+# -------- RUN --------
 
 print("BOT STARTED")
 
