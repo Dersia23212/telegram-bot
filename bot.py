@@ -1,95 +1,124 @@
 import telebot
 from telebot import types
+import json
+import os
 
 TOKEN = "8397279335:AAHVEyh5sSGDOUcrSukgv3rFZIBp8ywaJdA"
+ADMIN_ID = "6391072366"
 
 bot = telebot.TeleBot(TOKEN)
 
-# ВАЖЛИВО! Встав свій Telegram ID
-ADMIN_ID = 6391072366
+DB = "clients.json"
 
-MANAGER_PHONE = "+0666508711"
-REVIEW_LINK = "https://www.google.com/maps/place/Profi+Protect/@50.5091268,30.4629253,21z/data=!4m8!3m7!1s0x472b2b008d32e03b:0x9e906a87a1af6440!8m2!3d50.5090198!4d30.4629729!9m1!1b1!16s%2Fg%2F11vm5x966f?entry=ttu&g_ep=EgoyMDI2MDIxNy4wIKXMDSoASAFQAw%3D%3D"  # посилання на відгуки
+# база
+def load():
+    if not os.path.exists(DB):
+        return {}
+    return json.load(open(DB))
 
-# старт клієнта
+def save(data):
+    json.dump(data, open(DB,"w"))
+
+# старт
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.send_message(
-        message.chat.id,
-        "Вітаємо! 😊\nМи будемо інформувати вас про статус замовлення."
-    )
 
-# меню для менеджера
+    db = load()
+    db[str(message.chat.id)] = {
+        "name": message.from_user.first_name,
+        "status": "Новий"
+    }
+    save(db)
+
+    bot.send_message(message.chat.id,"Вітаємо!")
+
+# CRM меню
 @bot.message_handler(commands=['crm'])
-def crm_menu(message):
+def crm(message):
 
     if message.chat.id != ADMIN_ID:
         return
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
-    markup.add("🧾 Надіслати чек")
-    markup.add("📦 Замовлення готове")
-    markup.add("🚚 Замовлення відправлено")
-    markup.add("⭐ Запросити відгук")
+    markup.add("🧾 Чек PDF")
+    markup.add("🚚 ТТН")
+    markup.add("📦 Статус")
 
-    bot.send_message(message.chat.id, "CRM меню:", reply_markup=markup)
+    bot.send_message(message.chat.id,"CRM:",reply_markup=markup)
 
-# обробка кнопок
-@bot.message_handler(func=lambda message: message.chat.id == ADMIN_ID)
-def admin_buttons(message):
+# чек
+@bot.message_handler(func=lambda m:m.text=="🧾 Чек PDF")
+def check(message):
 
-    if message.text == "🧾 Надіслати чек":
+    msg=bot.send_message(message.chat.id,"ID клієнта:")
+    bot.register_next_step_handler(msg,send_check)
 
-        msg = bot.send_message(ADMIN_ID, "Введіть ID клієнта:")
-        bot.register_next_step_handler(msg, send_receipt)
+def send_check(message):
 
-    elif message.text == "📦 Замовлення готове":
+    client=message.text
 
-        msg = bot.send_message(ADMIN_ID, "Введіть ID клієнта:")
-        bot.register_next_step_handler(msg, send_ready)
+    file=open("check.pdf","rb")
 
-    elif message.text == "🚚 Замовлення відправлено":
+    bot.send_document(client,file)
 
-        msg = bot.send_message(ADMIN_ID, "Введіть ID клієнта:")
-        bot.register_next_step_handler(msg, send_sent)
+    bot.send_message(message.chat.id,"Готово")
 
-    elif message.text == "⭐ Запросити відгук":
+# ттн
+@bot.message_handler(func=lambda m:m.text=="🚚 ТТН")
+def ttn(message):
 
-        msg = bot.send_message(ADMIN_ID, "Введіть ID клієнта:")
-        bot.register_next_step_handler(msg, send_review)
+    msg=bot.send_message(message.chat.id,"ID клієнта:")
+    bot.register_next_step_handler(msg,ttn2)
 
+def ttn2(message):
 
-def send_receipt(message):
+    client=message.text
 
-    bot.send_message(
-        message.text,
-        "🧾 Ваш чек готовий.\nДякуємо за покупку!"
-    )
+    msg=bot.send_message(message.chat.id,"Номер ТТН:")
+    bot.register_next_step_handler(msg,ttn3,client)
 
-
-def send_ready(message):
+def ttn3(message,client):
 
     bot.send_message(
-        message.text,
-        "📦 Ваше замовлення готове до відправки."
+        client,
+        f"🚚 Ваша ТТН:\n{message.text}"
     )
 
+    bot.send_message(message.chat.id,"Готово")
 
-def send_sent(message):
+# статус
+@bot.message_handler(func=lambda m:m.text=="📦 Статус")
+def status(message):
+
+    msg=bot.send_message(message.chat.id,"ID клієнта:")
+    bot.register_next_step_handler(msg,status2)
+
+def status2(message):
+
+    client=message.text
+
+    markup=types.ReplyKeyboardMarkup(resize_keyboard=True)
+
+    markup.add("Готово")
+    markup.add("Відправлено")
+    markup.add("Доставлено")
+
+    msg=bot.send_message(
+        message.chat.id,
+        "Оберіть:",
+        reply_markup=markup
+    )
+
+    bot.register_next_step_handler(msg,status3,client)
+
+def status3(message,client):
 
     bot.send_message(
-        message.text,
-        f"🚚 Ваше замовлення відправлено!\n\n📞 Менеджер: {MANAGER_PHONE}"
+        client,
+        f"📦 Статус:\n{message.text}"
     )
 
-
-def send_review(message):
-
-    bot.send_message(
-        message.text,
-        f"❤️ Дякуємо за покупку!\nБудемо вдячні за відгук:\n{REVIEW_LINK}"
-    )
-
+    bot.send_message(message.chat.id,"Готово")
 
 bot.infinity_polling()
