@@ -9,7 +9,7 @@ TOKEN = "8397279335:AAHVEyh5sSGDOUcrSukgv3rFZIBp8ywaJdA"
 
 ADMIN_ID = 6391072366
 
-MANAGER_PHONE = "0666508711"
+MANAGER_PHONE = "+0666508711"
 
 MANAGER_USERNAME = "profi_protect_official"
 
@@ -18,6 +18,7 @@ CATALOG_FILE = "catalog.pdf"
 bot = telebot.TeleBot(TOKEN)
 
 DB_FILE = "clients.json"
+
 
 # ========= БАЗА =========
 
@@ -157,8 +158,6 @@ def crm(message):
 
     markup.add("🚚 Надіслати ТТН")
 
-    markup.add("📦 Статус")
-
     bot.send_message(
 
         message.chat.id,
@@ -286,54 +285,6 @@ def ttn_send(message):
     bot.send_message(message.chat.id, "✅ ТТН надіслано")
 
     del ttn_wait[message.chat.id]
-
-
-# ========= СТАТУС =========
-
-status_wait = {}
-
-@bot.message_handler(func=lambda m: m.text == "📦 Статус")
-def status_start(message):
-
-    msg = bot.send_message(message.chat.id, "Введіть ID клієнта:")
-
-    bot.register_next_step_handler(msg, status_choose)
-
-
-def status_choose(message):
-
-    status_wait[message.chat.id] = message.text
-
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-
-    markup.add("📦 Готово")
-
-    markup.add("🚚 Відправлено")
-
-    markup.add("✅ Доставлено")
-
-    msg = bot.send_message(
-
-        message.chat.id,
-
-        "Оберіть статус:",
-
-        reply_markup=markup
-
-    )
-
-    bot.register_next_step_handler(msg, status_send)
-
-
-def status_send(message):
-
-    client = status_wait[message.chat.id]
-
-    bot.send_message(client, f"📦 Статус замовлення:\n{message.text}")
-
-    bot.send_message(message.chat.id, "✅ Статус надіслано")
-
-    del status_wait[message.chat.id]
 
 
 # ========= RUN =========
