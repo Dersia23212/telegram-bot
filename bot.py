@@ -3,7 +3,7 @@ from telebot import types
 import json
 import os
 
-# ---------------- НАСТРОЙКИ ----------------
+# ---------------- НАЛАШТУВАННЯ ----------------
 
 TOKEN = "8397279335:AAHVEyh5sSGDOUcrSukgv3rFZIBp8ywaJdA"
 
@@ -11,7 +11,9 @@ ADMIN_ID = 6391072366
 
 MANAGER_PHONE = "+0666508711"
 
-MANAGER_USERNAME = "profi_protect_official"  # без @
+MANAGER_USERNAME = "manager_username"
+
+MANAGER_VIBER = "0666508711"
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -103,57 +105,53 @@ def catalog(message):
 
         bot.send_message(message.chat.id, "Каталог не знайдено")
 
-# ---------------- ДЗВІНОК ----------------
+# ---------------- ТЕЛЕФОН ----------------
 
 @bot.message_handler(func=lambda m: m.text == "📞 Зателефонувати менеджеру")
 
-def call_manager(message):
-
-    markup = types.InlineKeyboardMarkup()
-
-    button = types.InlineKeyboardButton(
-
-        text="📞 Подзвонити менеджеру",
-
-        url=f"tel:{MANAGER_PHONE}"
-
-    )
-
-    markup.add(button)
+def phone(message):
 
     bot.send_message(
 
         message.chat.id,
 
-        f"Телефон менеджера:\n{MANAGER_PHONE}",
-
-        reply_markup=markup
+        f"📞 Номер менеджера:\n\n{MANAGER_PHONE}"
 
     )
 
-# ---------------- НАПИСАТИ ----------------
+# ---------------- TELEGRAM + VIBER ----------------
 
 @bot.message_handler(func=lambda m: m.text == "💬 Написати менеджеру")
 
-def write_manager(message):
+def manager(message):
 
     markup = types.InlineKeyboardMarkup()
 
-    button = types.InlineKeyboardButton(
+    telegram_button = types.InlineKeyboardButton(
 
-        text="💬 Відкрити чат",
+        "💬 Telegram",
 
         url=f"https://t.me/{MANAGER_USERNAME}"
 
     )
 
-    markup.add(button)
+    viber_button = types.InlineKeyboardButton(
+
+        "📱 Viber",
+
+        url=f"viber://chat?number=%2B{MANAGER_VIBER}"
+
+    )
+
+    markup.add(telegram_button)
+
+    markup.add(viber_button)
 
     bot.send_message(
 
         message.chat.id,
 
-        "Натисніть кнопку щоб написати менеджеру:",
+        "Оберіть месенджер:",
 
         reply_markup=markup
 
@@ -213,7 +211,7 @@ def clients(message):
 
 def send_all(message):
 
-    msg = bot.send_message(message.chat.id, "Введіть текст розсилки:")
+    msg = bot.send_message(message.chat.id, "Введіть текст:")
 
     bot.register_next_step_handler(msg, send_all_finish)
 
@@ -238,7 +236,7 @@ def send_all_finish(message):
 
     bot.send_message(message.chat.id, f"Надіслано: {sent}")
 
-# ---------------- PDF ЧЕК ----------------
+# ---------------- PDF ----------------
 
 pdf_wait = {}
 
@@ -280,7 +278,7 @@ ttn_wait = {}
 
 def ttn_start(message):
 
-    msg = bot.send_message(message.chat.id, "Введіть ID клієнта:")
+    msg = bot.send_message(message.chat.id, "ID клієнта:")
 
     bot.register_next_step_handler(msg, ttn_number)
 
@@ -318,7 +316,7 @@ status_wait = {}
 
 def status_start(message):
 
-    msg = bot.send_message(message.chat.id, "Введіть ID клієнта:")
+    msg = bot.send_message(message.chat.id, "ID клієнта:")
 
     bot.register_next_step_handler(msg, status_choose)
 
