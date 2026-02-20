@@ -112,7 +112,7 @@ def phone(message):
 
 # -------- TELEGRAM + VIBER --------
 
-@bot.message_handler(func=lambda m: m.text == "💬 Написати менеджеру")
+@bot.message_handler(func=lambda m: "Написати менеджеру" in m.text)
 def manager(message):
 
     markup = types.InlineKeyboardMarkup()
