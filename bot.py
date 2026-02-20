@@ -58,11 +58,17 @@ def start(message):
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
-    markup.add("🎨 Каталог кольорів")
+btn1 = types.KeyboardButton("🎨 Каталог кольорів")
 
-    markup.add("📞 Зателефонувати менеджеру")
+btn2 = types.KeyboardButton("📞 Зателефонувати менеджеру")
 
-    markup.add("💬 Написати менеджеру")
+btn3 = types.KeyboardButton("Написати менеджеру")
+
+markup.add(btn1)
+
+markup.add(btn2)
+
+markup.add(btn3)
 
     bot.send_message(
 
