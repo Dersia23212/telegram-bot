@@ -9,18 +9,15 @@ TOKEN = "8397279335:AAHVEyh5sSGDOUcrSukgv3rFZIBp8ywaJdA"
 
 ADMIN_ID = 6391072366
 
-MANAGER_PHONE = "+380666508711"
+MANAGER_PHONE = "0666508711"
 
-MANAGER_USERNAME = "profi_protect_manager"
-
-MANAGER_VIBER = "380666508711"
+MANAGER_USERNAME = "profi_protect_official"
 
 CATALOG_FILE = "catalog.pdf"
 
 bot = telebot.TeleBot(TOKEN)
 
 DB_FILE = "clients.json"
-
 
 # ========= БАЗА =========
 
@@ -60,41 +57,48 @@ def start(message):
 
     add_client(message.from_user)
 
-    # нижні кнопки
     reply = types.ReplyKeyboardMarkup(resize_keyboard=True)
+
     reply.add("🎨 Каталог кольорів")
+
     reply.add("📞 Зателефонувати менеджеру")
 
-    # inline кнопки контактів
     inline = types.InlineKeyboardMarkup()
 
     inline.add(
+
         types.InlineKeyboardButton(
-            "💬 Написати в Telegram",
+
+            "💬 Написати менеджеру в Telegram",
+
             url=f"https://t.me/{MANAGER_USERNAME}"
-        )
-    )
 
-    inline.add(
-        types.InlineKeyboardButton(
-            "📱 Написати в Viber",
-            url=f"viber://chat?number=%2B{MANAGER_VIBER}"
         )
+
     )
 
     bot.send_message(
+
         message.chat.id,
+
         "Вас вітає бот Profi Protect! 👋\n\n"
-        "Я буду інформувати вас про статус замовлення.\n\n"
-        "📩 Також можете написати менеджеру:",
+
+        "Я буду інформувати вас про статус вашого замовлення 📦",
+
         reply_markup=reply
+
     )
 
     bot.send_message(
+
         message.chat.id,
-        "Контакти менеджера:",
+
+        "📩 Зв'язок з менеджером:",
+
         reply_markup=inline
+
     )
+
 
 # ========= КАТАЛОГ =========
 
@@ -134,44 +138,6 @@ def phone(message):
     )
 
 
-# ========= TELEGRAM + VIBER =========
-
-@bot.message_handler(func=lambda m: "Написати менеджеру" in m.text)
-def manager(message):
-
-    markup = types.InlineKeyboardMarkup()
-
-    telegram_btn = types.InlineKeyboardButton(
-
-        "💬 Telegram",
-
-        url=f"https://t.me/{MANAGER_USERNAME}"
-
-    )
-
-    viber_btn = types.InlineKeyboardButton(
-
-        "📱 Viber",
-
-        url=f"viber://chat?number=%2B{MANAGER_VIBER}"
-
-    )
-
-    markup.add(telegram_btn)
-
-    markup.add(viber_btn)
-
-    bot.send_message(
-
-        message.chat.id,
-
-        "Оберіть месенджер:",
-
-        reply_markup=markup
-
-    )
-
-
 # ========= CRM =========
 
 @bot.message_handler(commands=['crm'])
@@ -193,7 +159,15 @@ def crm(message):
 
     markup.add("📦 Статус")
 
-    bot.send_message(message.chat.id, "CRM меню:", reply_markup=markup)
+    bot.send_message(
+
+        message.chat.id,
+
+        "CRM меню:",
+
+        reply_markup=markup
+
+    )
 
 
 # ========= КЛІЄНТИ =========
@@ -217,7 +191,7 @@ def clients(message):
 @bot.message_handler(func=lambda m: m.text == "📢 Розсилка")
 def send_all(message):
 
-    msg = bot.send_message(message.chat.id, "Введіть текст:")
+    msg = bot.send_message(message.chat.id, "Введіть текст розсилки:")
 
     bot.register_next_step_handler(msg, send_all_finish)
 
@@ -259,7 +233,7 @@ def pdf_client(message):
 
     pdf_wait[message.chat.id] = message.text
 
-    bot.send_message(message.chat.id, "Надішліть PDF")
+    bot.send_message(message.chat.id, "Надішліть PDF файл")
 
 
 @bot.message_handler(content_types=['document'])
@@ -283,7 +257,7 @@ ttn_wait = {}
 @bot.message_handler(func=lambda m: m.text == "🚚 Надіслати ТТН")
 def ttn_start(message):
 
-    msg = bot.send_message(message.chat.id, "ID клієнта:")
+    msg = bot.send_message(message.chat.id, "Введіть ID клієнта:")
 
     bot.register_next_step_handler(msg, ttn_number)
 
@@ -292,7 +266,7 @@ def ttn_number(message):
 
     ttn_wait[message.chat.id] = message.text
 
-    msg = bot.send_message(message.chat.id, "Введіть ТТН:")
+    msg = bot.send_message(message.chat.id, "Введіть номер ТТН:")
 
     bot.register_next_step_handler(msg, ttn_send)
 
@@ -321,7 +295,7 @@ status_wait = {}
 @bot.message_handler(func=lambda m: m.text == "📦 Статус")
 def status_start(message):
 
-    msg = bot.send_message(message.chat.id, "ID клієнта:")
+    msg = bot.send_message(message.chat.id, "Введіть ID клієнта:")
 
     bot.register_next_step_handler(msg, status_choose)
 
@@ -338,7 +312,15 @@ def status_choose(message):
 
     markup.add("✅ Доставлено")
 
-    msg = bot.send_message(message.chat.id, "Оберіть статус:", reply_markup=markup)
+    msg = bot.send_message(
+
+        message.chat.id,
+
+        "Оберіть статус:",
+
+        reply_markup=markup
+
+    )
 
     bot.register_next_step_handler(msg, status_send)
 
@@ -347,7 +329,7 @@ def status_send(message):
 
     client = status_wait[message.chat.id]
 
-    bot.send_message(client, f"📦 Статус:\n{message.text}")
+    bot.send_message(client, f"📦 Статус замовлення:\n{message.text}")
 
     bot.send_message(message.chat.id, "✅ Статус надіслано")
 
