@@ -3,69 +3,156 @@ from telebot import types
 import json
 import os
 
+# ----------- НАЛАШТУВАННЯ -----------
+
 TOKEN = "8397279335:AAHVEyh5sSGDOUcrSukgv3rFZIBp8ywaJdA"
 ADMIN_ID = 6391072366
+MANAGER_PHONE = "0666508711"
 
 bot = telebot.TeleBot(TOKEN)
 
 DB_FILE = "clients.json"
 
-# ---------------- БАЗА ----------------
+# ----------- БАЗА -----------
 
 def load_db():
+
     if not os.path.exists(DB_FILE):
+
         with open(DB_FILE, "w") as f:
+
             json.dump({}, f)
+
     with open(DB_FILE, "r") as f:
+
         return json.load(f)
 
+
 def save_db(data):
+
     with open(DB_FILE, "w") as f:
+
         json.dump(data, f)
 
-# ---------------- START ----------------
 
-@bot.message_handler(commands=['start'])
-def start(message):
+def add_client(user):
 
     db = load_db()
 
-    db[str(message.chat.id)] = {
-        "name": message.from_user.first_name,
-        "status": "Новий"
+    db[str(user.id)] = {
+
+        "name": user.first_name
+
     }
 
     save_db(db)
 
+# ----------- START -----------
+
+@bot.message_handler(commands=['start'])
+
+def start(message):
+
+    add_client(message.from_user)
+
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+
+    markup.add("🎨 Каталог кольорів")
+
+    markup.add("📞 Зателефонувати менеджеру")
+
     bot.send_message(
+
         message.chat.id,
-        "Вітаємо! Ви додані в систему."
+
+        "Вас вітає бот Profi Protect! 👋\n\n"
+
+        "Я буду інформувати вас про статус вашого замовлення 📦",
+
+        reply_markup=markup
+
     )
 
-# ---------------- CRM ----------------
+# ----------- КАТАЛОГ -----------
+
+@bot.message_handler(func=lambda m: m.text == "🎨 Каталог кольорів")
+
+def catalog(message):
+
+    try:
+
+        file = open("catalog.pdf", "rb")
+
+        bot.send_document(
+
+            message.chat.id,
+
+            file,
+
+            caption="📘 Каталог кольорів Profi Protect"
+
+        )
+
+    except:
+
+        bot.send_message(message.chat.id, "Каталог не знайдено")
+
+# ----------- ДЗВІНОК МЕНЕДЖЕРУ -----------
+
+@bot.message_handler(func=lambda m: m.text == "📞 Зателефонувати менеджеру")
+
+def manager(message):
+
+    markup = types.InlineKeyboardMarkup()
+
+    button = types.InlineKeyboardButton(
+
+        text="📞 Подзвонити менеджеру",
+
+        url=f"tel:{MANAGER_PHONE}"
+
+    )
+
+    markup.add(button)
+
+    bot.send_message(
+
+        message.chat.id,
+
+        f"Телефон менеджера:\n{MANAGER_PHONE}",
+
+        reply_markup=markup
+
+    )
+
+# ----------- CRM -----------
 
 @bot.message_handler(commands=['crm'])
+
 def crm(message):
 
     if message.chat.id != ADMIN_ID:
+
         return
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
     markup.add("👥 Клієнти")
+
+    markup.add("📢 Розсилка")
+
     markup.add("🧾 Надіслати PDF")
+
     markup.add("🚚 Надіслати ТТН")
-    markup.add("📦 Змінити статус")
 
-    bot.send_message(
-        message.chat.id,
-        "CRM меню:",
-        reply_markup=markup
-    )
+    markup.add("📦 Статус")
 
-# ---------------- СПИСОК ----------------
+    bot.send_message(message.chat.id, "CRM меню:", reply_markup=markup)
+
+# ----------- СПИСОК КЛІЄНТІВ -----------
 
 @bot.message_handler(func=lambda m: m.text == "👥 Клієнти")
+
 def clients(message):
 
     db = load_db()
@@ -73,119 +160,161 @@ def clients(message):
     text = ""
 
     for i in db:
+
         text += f"{db[i]['name']} — {i}\n"
 
     bot.send_message(message.chat.id, text)
 
-# ---------------- PDF ----------------
+# ----------- МАСОВА РОЗСИЛКА -----------
+
+@bot.message_handler(func=lambda m: m.text == "📢 Розсилка")
+
+def send_all(message):
+
+    msg = bot.send_message(message.chat.id, "Введіть текст:")
+
+    bot.register_next_step_handler(msg, send_all_finish)
+
+
+def send_all_finish(message):
+
+    db = load_db()
+
+    sent = 0
+
+    for i in db:
+
+        try:
+
+            bot.send_message(i, message.text)
+
+            sent += 1
+
+        except:
+
+            pass
+
+    bot.send_message(message.chat.id, f"Надіслано: {sent}")
+
+# ----------- PDF ЧЕК -----------
 
 pdf_wait = {}
 
 @bot.message_handler(func=lambda m: m.text == "🧾 Надіслати PDF")
-def ask_pdf(message):
+
+def pdf_start(message):
 
     msg = bot.send_message(message.chat.id, "Введіть ID клієнта:")
 
-    bot.register_next_step_handler(msg, get_pdf_client)
+    bot.register_next_step_handler(msg, pdf_client)
 
-def get_pdf_client(message):
+
+def pdf_client(message):
 
     pdf_wait[message.chat.id] = message.text
 
-    bot.send_message(
-        message.chat.id,
-        "Тепер надішліть PDF файл"
-    )
+    bot.send_message(message.chat.id, "Надішліть PDF файл")
+
 
 @bot.message_handler(content_types=['document'])
-def send_pdf(message):
 
-    if message.chat.id not in pdf_wait:
-        return
+def pdf_send(message):
 
-    client = pdf_wait[message.chat.id]
+    if message.chat.id in pdf_wait:
 
-    file_id = message.document.file_id
+        client = pdf_wait[message.chat.id]
 
-    bot.send_document(client, file_id)
+        bot.send_document(client, message.document.file_id)
 
-    bot.send_message(message.chat.id, "PDF надіслано")
+        bot.send_message(message.chat.id, "PDF надіслано")
 
-# ---------------- ТТН ----------------
+        del pdf_wait[message.chat.id]
+
+# ----------- ТТН -----------
 
 ttn_wait = {}
 
 @bot.message_handler(func=lambda m: m.text == "🚚 Надіслати ТТН")
-def ask_ttn(message):
 
-    msg = bot.send_message(message.chat.id, "ID клієнта:")
+def ttn_start(message):
 
-    bot.register_next_step_handler(msg, get_ttn)
+    msg = bot.send_message(message.chat.id, "Введіть ID клієнта:")
 
-def get_ttn(message):
+    bot.register_next_step_handler(msg, ttn_number)
+
+
+def ttn_number(message):
 
     ttn_wait[message.chat.id] = message.text
 
     msg = bot.send_message(message.chat.id, "Введіть номер ТТН:")
 
-    bot.register_next_step_handler(msg, send_ttn)
+    bot.register_next_step_handler(msg, ttn_send)
 
-def send_ttn(message):
+
+def ttn_send(message):
 
     client = ttn_wait[message.chat.id]
 
-    number = message.text
-
     bot.send_message(
+
         client,
-        f"🚚 Ваш номер ТТН:\n{number}"
+
+        f"🚚 Ваше замовлення відправлено\n\nТТН:\n{message.text}"
+
     )
 
     bot.send_message(message.chat.id, "ТТН надіслано")
 
-# ---------------- СТАТУС ----------------
+    del ttn_wait[message.chat.id]
+
+# ----------- СТАТУС -----------
 
 status_wait = {}
 
-@bot.message_handler(func=lambda m: m.text == "📦 Змінити статус")
-def ask_status(message):
+@bot.message_handler(func=lambda m: m.text == "📦 Статус")
 
-    msg = bot.send_message(message.chat.id, "ID клієнта:")
+def status_start(message):
 
-    bot.register_next_step_handler(msg, choose_status)
+    msg = bot.send_message(message.chat.id, "Введіть ID клієнта:")
 
-def choose_status(message):
+    bot.register_next_step_handler(msg, status_choose)
 
-    client = message.text
 
-    status_wait[message.chat.id] = client
+def status_choose(message):
+
+    status_wait[message.chat.id] = message.text
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
     markup.add("📦 Готово")
+
     markup.add("🚚 Відправлено")
+
     markup.add("✅ Доставлено")
 
-    msg = bot.send_message(
-        message.chat.id,
-        "Оберіть статус:",
-        reply_markup=markup
-    )
+    msg = bot.send_message(message.chat.id, "Оберіть статус:", reply_markup=markup)
 
-    bot.register_next_step_handler(msg, send_status)
+    bot.register_next_step_handler(msg, status_send)
 
-def send_status(message):
+
+def status_send(message):
 
     client = status_wait[message.chat.id]
 
     bot.send_message(
+
         client,
+
         f"📦 Статус замовлення:\n{message.text}"
+
     )
 
-    bot.send_message(message.chat.id, "Статус надіслано")
+    bot.send_message(message.chat.id, "Статус оновлено")
 
-# ---------------- RUN ----------------
+    del status_wait[message.chat.id]
+
+# ----------- RUN -----------
 
 print("BOT STARTED")
 
