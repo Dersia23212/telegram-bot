@@ -3,23 +3,21 @@ from telebot import types
 import json
 import os
 
-# ========= НАСТРОЙКИ =========
+# ===== НАСТРОЙКИ =====
 
 TOKEN = "8397279335:AAHVEyh5sSGDOUcrSukgv3rFZIBp8ywaJdA"
 
-ADMIN_ID = 6391072366 
+ADMIN_ID = 6391072366
 
-MANAGER_PHONE = "0666508711"
+MANAGER_PHONE = "+380666508711"
 
 MANAGER_USERNAME = "profi_protect_official"
-
-CATALOG_FILE = "catalog.pdf"
 
 bot = telebot.TeleBot(TOKEN)
 
 DB_FILE = "clients.json"
 
-# ========= БАЗА =========
+# ===== БАЗА =====
 
 def load_db():
 
@@ -34,33 +32,33 @@ def load_db():
         return json.load(f)
 
 
-def save_db(db):
+def save_db(data):
 
     with open(DB_FILE, "w") as f:
 
-        json.dump(db, f)
+        json.dump(data, f)
 
 
 def add_client(user):
 
-    db = load_db()
+    data = load_db()
 
-    db[str(user.id)] = user.first_name
+    data[str(user.id)] = user.first_name
 
-    save_db(db)
+    save_db(data)
 
-# ========= START =========
+# ===== START =====
 
 @bot.message_handler(commands=['start'])
 def start(message):
 
     add_client(message.from_user)
 
-    reply = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
-    reply.add("🎨 Каталог кольорів")
+    kb.add("🎨 Каталог кольорів")
 
-    reply.add("📞 Зателефонувати менеджеру")
+    kb.add("📞 Зателефонувати менеджеру")
 
     inline = types.InlineKeyboardMarkup()
 
@@ -82,7 +80,7 @@ def start(message):
 
         "Вас вітає бот Profi Protect! 👋",
 
-        reply_markup=reply
+        reply_markup=kb
 
     )
 
@@ -96,7 +94,51 @@ def start(message):
 
     )
 
-# ========= CRM =========
+# ===== КАТАЛОГ =====
+
+@bot.message_handler(func=lambda m: m.text == "🎨 Каталог кольорів")
+def catalog(message):
+
+    try:
+
+        file = open("catalog.pdf", "rb")
+
+        bot.send_document(
+
+            message.chat.id,
+
+            file,
+
+            caption="📘 Каталог кольорів Profi Protect"
+
+        )
+
+        file.close()
+
+    except:
+
+        bot.send_message(
+
+            message.chat.id,
+
+            "❌ Файл catalog.pdf не знайдено"
+
+        )
+
+# ===== PHONE =====
+
+@bot.message_handler(func=lambda m: m.text == "📞 Зателефонувати менеджеру")
+def phone(message):
+
+    bot.send_message(
+
+        message.chat.id,
+
+        f"📞 Номер менеджера:\n{MANAGER_PHONE}"
+
+    )
+
+# ===== CRM =====
 
 @bot.message_handler(commands=['crm'])
 def crm(message):
@@ -105,17 +147,9 @@ def crm(message):
 
         return
 
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
-    markup.add("👥 Клієнти")
-
-    markup.add("📢 Розсилка")
-
-    markup.add("🧾 Надіслати PDF")
-
-    markup.add("🚚 Надіслати ТТН")
-
-    markup.add("📦 Статус замовлення")
+    kb.add("📦 Статус замовлення")
 
     bot.send_message(
 
@@ -123,16 +157,16 @@ def crm(message):
 
         "CRM меню:",
 
-        reply_markup=markup
+        reply_markup=kb
 
     )
 
-# ========= СТАТУС =========
+# ===== STATUS =====
 
-status_client = {}
+temp = {}
 
 @bot.message_handler(func=lambda m: m.text == "📦 Статус замовлення")
-def status_start(message):
+def status(message):
 
     msg = bot.send_message(message.chat.id, "Введіть ID клієнта:")
 
@@ -141,17 +175,15 @@ def status_start(message):
 
 def status_choose(message):
 
-    client = message.text
+    temp[message.chat.id] = message.text
 
-    status_client[message.chat.id] = client
+    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    kb.add("📦 Готово")
 
-    markup.add("📦 Готово")
+    kb.add("⚙️ Формується")
 
-    markup.add("⚙️ Формується")
-
-    markup.add("🚚 Відправлено")
+    kb.add("🚚 Відправлено")
 
     msg = bot.send_message(
 
@@ -159,7 +191,7 @@ def status_choose(message):
 
         "Оберіть статус:",
 
-        reply_markup=markup
+        reply_markup=kb
 
     )
 
@@ -168,7 +200,7 @@ def status_choose(message):
 
 def status_send(message):
 
-    client = status_client[message.chat.id]
+    client = temp[message.chat.id]
 
     status = message.text
 
@@ -176,7 +208,7 @@ def status_send(message):
 
         msg = bot.send_message(message.chat.id, "Введіть ТТН:")
 
-        bot.register_next_step_handler(msg, send_ttn_with_status, client)
+        bot.register_next_step_handler(msg, send_ttn, client)
 
     else:
 
@@ -191,15 +223,13 @@ def status_send(message):
         bot.send_message(message.chat.id, "✅ Надіслано")
 
 
-def send_ttn_with_status(message, client):
-
-    ttn = message.text
+def send_ttn(message, client):
 
     bot.send_message(
 
         client,
 
-        f"📦 Статус замовлення:\n🚚 Відправлено\n\n🚚 ТТН:\n{ttn}"
+        f"📦 Статус замовлення:\n🚚 Відправлено\n\n🚚 ТТН:\n{message.text}"
 
     )
 
@@ -211,7 +241,7 @@ def send_ttn_with_status(message, client):
 
     )
 
-# ========= RUN =========
+# ===== RUN =====
 
 print("BOT STARTED")
 
