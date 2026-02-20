@@ -1,303 +1,202 @@
-import telebot
-from telebot import types
-import json
-import os
+import logging
+from aiogram import Bot, Dispatcher, types, executor
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+import sqlite3
 
-# ========= НАСТРОЙКИ =========
+# ========= НАЛАШТУВАННЯ =========
 
 TOKEN = "8397279335:AAHVEyh5sSGDOUcrSukgv3rFZIBp8ywaJdA"
-
-ADMIN_ID = 6391072366
-
-MANAGER_PHONE = "+380666508711"
+ADMIN_ID = 6391072366  # твій Telegram ID
 
 MANAGER_USERNAME = "profi_protect_official"
+MANAGER_PHONE = "+0666508711"
 
 CATALOG_FILE = "catalog.pdf"
 
-bot = telebot.TeleBot(TOKEN)
+# ================================
 
-DB_FILE = "clients.json"
+logging.basicConfig(level=logging.INFO)
+
+bot = Bot(token=TOKEN)
+dp = Dispatcher(bot)
 
 # ========= БАЗА =========
 
-def load_db():
+conn = sqlite3.connect("users.db")
+cursor = conn.cursor()
 
-    if not os.path.exists(DB_FILE):
-
-        with open(DB_FILE, "w") as f:
-
-            json.dump({}, f)
-
-    return json.load(open(DB_FILE))
-
-
-def save_db(data):
-
-    json.dump(data, open(DB_FILE, "w"))
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS users(
+    user_id INTEGER
+)
+""")
+conn.commit()
 
 
-def add_client(user):
+def add_user(user_id):
 
-    data = load_db()
+    cursor.execute("SELECT user_id FROM users WHERE user_id=?", (user_id,))
+    if cursor.fetchone() is None:
 
-    data[str(user.id)] = user.first_name
+        cursor.execute("INSERT INTO users VALUES(?)", (user_id,))
+        conn.commit()
 
-    save_db(data)
 
-# ========= ГОЛОВНЕ МЕНЮ =========
+def get_users():
 
-def main_menu():
+    cursor.execute("SELECT user_id FROM users")
+    return cursor.fetchall()
 
-    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
-    kb.add("🎨 Каталог кольорів")
+# ========= МЕНЮ =========
 
-    kb.add("📞 Зателефонувати менеджеру")
+menu = ReplyKeyboardMarkup(resize_keyboard=True)
 
-    kb.add("📦 Статус замовлення")
+menu.add("🎨 Кольори")
+menu.add("👨‍💼 Написати менеджеру")
+menu.add("📞 Подзвонити менеджеру")
 
-    return kb
 
-# ========= CRM MENU =========
+# ========= СТАРТ =========
 
-def crm_menu():
+@dp.message_handler(commands=['start'])
+async def start(message: types.Message):
 
-    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    add_user(message.from_user.id)
 
-    kb.add("📦 Статус замовлення")
-
-    kb.add("⬅️ Назад")
-
-    return kb
-
-# ========= START =========
-
-@bot.message_handler(commands=['start'])
-def start(message):
-
-    add_client(message.from_user)
-
-    inline = types.InlineKeyboardMarkup()
-
-    inline.add(
-
-        types.InlineKeyboardButton(
-
-            "💬 Написати менеджеру",
-
-            url=f"https://t.me/{MANAGER_USERNAME}"
-
-        )
-
+    text = (
+        "👋 Вітаємо!\n\n"
+        "Я бот компанії *Profi Protect*.\n\n"
+        "Я допоможу вам отримати інформацію щодо вашого замовлення, "
+        "ТТН, статусу, а також надати каталог кольорів.\n\n"
+        "Оберіть потрібний пункт меню 👇"
     )
 
-    bot.send_message(
+    await message.answer(text, parse_mode="Markdown", reply_markup=menu)
 
-        message.chat.id,
-
-        "Вас вітає бот Profi Protect! 👋",
-
-        reply_markup=main_menu()
-
-    )
-
-    bot.send_message(
-
-        message.chat.id,
-
-        "📩 Зв'язок з менеджером:",
-
-        reply_markup=inline
-
-    )
 
 # ========= КАТАЛОГ =========
 
-@bot.message_handler(func=lambda m: m.text == "🎨 Каталог кольорів")
-def catalog(message):
+@dp.message_handler(lambda message: message.text == "🎨 Кольори")
+async def catalog(message: types.Message):
 
-    try:
-
-        file = open(CATALOG_FILE, "rb")
-
-        bot.send_document(
-
-            message.chat.id,
-
-            file,
-
-            caption="📘 Каталог кольорів"
-
-        )
-
-        file.close()
-
-    except:
-
-        bot.send_message(
-
-            message.chat.id,
-
-            "❌ Файл не знайдено"
-
-        )
-
-# ========= PHONE =========
-
-@bot.message_handler(func=lambda m: m.text == "📞 Зателефонувати менеджеру")
-def phone(message):
-
-    bot.send_message(
-
+    await bot.send_document(
         message.chat.id,
-
-        f"📞 Номер менеджера:\n{MANAGER_PHONE}"
-
+        open(CATALOG_FILE, "rb"),
+        caption="🎨 Каталог кольорів Profi Protect"
     )
 
-# ========= CRM =========
 
-@bot.message_handler(commands=['crm'])
-def crm(message):
+# ========= МЕНЕДЖЕР =========
 
-    if message.chat.id != ADMIN_ID:
+@dp.message_handler(lambda message: message.text == "👨‍💼 Написати менеджеру")
+async def manager(message: types.Message):
 
+    await message.answer(
+        f"Напишіть менеджеру:\nhttps://t.me/{MANAGER_USERNAME}"
+    )
+
+
+@dp.message_handler(lambda message: message.text == "📞 Подзвонити менеджеру")
+async def phone(message: types.Message):
+
+    await message.answer(
+        f"Телефон менеджера:\n{MANAGER_PHONE}"
+    )
+
+
+# ====================================
+# ========= АДМІН КОМАНДИ ===========
+# ====================================
+
+
+# ===== РОЗСИЛКА =====
+
+@dp.message_handler(commands=['broadcast'])
+async def broadcast(message: types.Message):
+
+    if message.from_user.id != ADMIN_ID:
         return
 
-    bot.send_message(
+    text = message.get_args()
 
-        message.chat.id,
+    users = get_users()
 
-        "CRM меню:",
+    for user in users:
 
-        reply_markup=crm_menu()
+        try:
 
+            await bot.send_message(user[0], text)
+
+        except:
+            pass
+
+    await message.answer("✅ Розсилка виконана")
+
+
+# ===== ТТН =====
+
+@dp.message_handler(commands=['ttn'])
+async def ttn(message: types.Message):
+
+    if message.from_user.id != ADMIN_ID:
+        return
+
+    args = message.get_args().split()
+
+    user_id = args[0]
+    number = args[1]
+
+    text = (
+        f"📦 Ваше замовлення відправлено!\n\n"
+        f"🚚 ТТН: {number}"
     )
 
-# ========= BACK =========
+    await bot.send_message(user_id, text)
 
-@bot.message_handler(func=lambda m: m.text == "⬅️ Назад")
-def back(message):
+    await message.answer("✅ ТТН відправлено")
 
-    bot.send_message(
 
-        message.chat.id,
+# ===== СТАТУС =====
 
-        "Головне меню:",
+@dp.message_handler(commands=['status'])
+async def status(message: types.Message):
 
-        reply_markup=main_menu()
+    if message.from_user.id != ADMIN_ID:
+        return
 
+    args = message.get_args().split()
+
+    user_id = args[0]
+
+    text = "✅ Ваше замовлення готове"
+
+    await bot.send_message(user_id, text)
+
+    await message.answer("✅ Статус відправлено")
+
+
+# ===== ЧЕК =====
+
+@dp.message_handler(commands=['check'])
+async def check(message: types.Message):
+
+    if message.from_user.id != ADMIN_ID:
+        return
+
+    args = message.get_args().split()
+
+    user_id = args[0]
+
+    await bot.send_document(
+        user_id,
+        message.document.file_id,
+        caption="🧾 Ваш чек"
     )
 
-# ========= STATUS =========
 
-temp = {}
+# ========= ЗАПУСК =========
 
-@bot.message_handler(func=lambda m: m.text == "📦 Статус замовлення")
-def status(message):
+if __name__ == "__main__":
 
-    msg = bot.send_message(
-
-        message.chat.id,
-
-        "Введіть ID клієнта:"
-
-    )
-
-    bot.register_next_step_handler(msg, status2)
-
-
-def status2(message):
-
-    temp[message.chat.id] = message.text
-
-    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-
-    kb.add("📦 Готово")
-
-    kb.add("⚙️ Формується")
-
-    kb.add("🚚 Відправлено")
-
-    kb.add("⬅️ Назад")
-
-    msg = bot.send_message(
-
-        message.chat.id,
-
-        "Оберіть статус:",
-
-        reply_markup=kb
-
-    )
-
-    bot.register_next_step_handler(msg, status3)
-
-
-def status3(message):
-
-    client = temp[message.chat.id]
-
-    if message.text == "🚚 Відправлено":
-
-        msg = bot.send_message(
-
-            message.chat.id,
-
-            "Введіть ТТН:"
-
-        )
-
-        bot.register_next_step_handler(msg, send_ttn, client)
-
-    elif message.text == "⬅️ Назад":
-
-        back(message)
-
-    else:
-
-        bot.send_message(
-
-            client,
-
-            f"📦 Статус:\n{message.text}"
-
-        )
-
-        bot.send_message(
-
-            message.chat.id,
-
-            "✅ Надіслано",
-
-            reply_markup=main_menu()
-
-        )
-
-
-def send_ttn(message, client):
-
-    bot.send_message(
-
-        client,
-
-        f"📦 Відправлено\n🚚 ТТН: {message.text}"
-
-    )
-
-    bot.send_message(
-
-        message.chat.id,
-
-        "✅ Готово",
-
-        reply_markup=main_menu()
-
-    )
-
-# ========= RUN =========
-
-print("BOT STARTED")
-
-bot.infinity_polling()
+    executor.start_polling(dp, skip_updates=True)
