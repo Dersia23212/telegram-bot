@@ -60,26 +60,41 @@ def start(message):
 
     add_client(message.from_user)
 
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    # нижні кнопки
+    reply = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    reply.add("🎨 Каталог кольорів")
+    reply.add("📞 Зателефонувати менеджеру")
 
-    markup.add(types.KeyboardButton("🎨 Каталог кольорів"))
+    # inline кнопки контактів
+    inline = types.InlineKeyboardMarkup()
 
-    markup.add(types.KeyboardButton("📞 Зателефонувати менеджеру"))
-
-    markup.add(types.KeyboardButton("💬 Написати менеджеру"))
-
-    bot.send_message(
-
-        message.chat.id,
-
-        "Вас вітає бот Profi Protect! 👋\n\n"
-
-        "Я буду інформувати вас про статус вашого замовлення 📦",
-
-        reply_markup=markup
-
+    inline.add(
+        types.InlineKeyboardButton(
+            "💬 Написати в Telegram",
+            url=f"https://t.me/{MANAGER_USERNAME}"
+        )
     )
 
+    inline.add(
+        types.InlineKeyboardButton(
+            "📱 Написати в Viber",
+            url=f"viber://chat?number=%2B{MANAGER_VIBER}"
+        )
+    )
+
+    bot.send_message(
+        message.chat.id,
+        "Вас вітає бот Profi Protect! 👋\n\n"
+        "Я буду інформувати вас про статус замовлення.\n\n"
+        "📩 Також можете написати менеджеру:",
+        reply_markup=reply
+    )
+
+    bot.send_message(
+        message.chat.id,
+        "Контакти менеджера:",
+        reply_markup=inline
+    )
 
 # ========= КАТАЛОГ =========
 
